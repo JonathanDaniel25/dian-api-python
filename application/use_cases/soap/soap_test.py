@@ -126,11 +126,33 @@ class SoapRequestTest:
         }
 
         response = requests.post(url, data=xml_request, headers=headers)
+        print("XML Request:\n",response, response.text, response.raise_for_status())
         response.raise_for_status()
 
         return response
         
     def send_xml(self, base64_file):
         xml_request = self._prepare_xml(base64_file)
+        
+        # Guardar XML en archivo
+        import os
+        from datetime import datetime
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"soap_request_{timestamp}.xml"
+        
+        # Crear directorio si no existe
+        os.makedirs('logs', exist_ok=True)
+        filepath = os.path.join('logs', filename)
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(xml_request)
+        
+        # Imprimir en consola
+        print("=" * 80)
+        print(f"XML Request guardado en: {filepath}")
+        print("=" * 80)
+        print(xml_request)
+        print("=" * 80)
+        
         return self._send_soap_request(xml_request)
 
