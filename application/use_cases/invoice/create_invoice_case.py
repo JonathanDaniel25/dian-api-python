@@ -74,7 +74,10 @@ class CreateInvoiceCase:
 
         # Enviar la Factura
         try:
-            response = self.soap_invoice.send_xml(zip_invoice)
+            result = self.soap_invoice.send_xml(zip_invoice)
+            response = result['response']
+            track_id = result['track_id']
+            
             is_valid, messages = generic.extract_errors_invoice(response.text)
 
             if is_valid == 'false':
@@ -83,12 +86,19 @@ class CreateInvoiceCase:
                 detail = messages[0] if len(messages) == 1 else messages
                 raise DianRejectedDocumentError("La DIAN rechazo el documento.", detail)
             
+            # Agregar trackId a los mensajes de retorno
+            return {
+                'messages': messages,
+                'track_id': track_id,
+                'filepath': result['filepath']
+            }
+            
+        except DianRejectedDocumentError:
+            raise
         except Exception as e:
             print(f"Error al enviar la factura. XML enviado: {self.xml_name}")
             print(f"Error al enviar la factura. Respuesta XML: {e}")
             raise
-        
-        return messages
 
     def send_test(self):
         signed_invoice = self._create()
@@ -103,8 +113,16 @@ class CreateInvoiceCase:
 
         # Enviar la Factura
         try:
-            response = self.soap_test.send_xml(zip_invoice)
-            return { "status": response.status_code, "text": response.text }
+            result = self.soap_test.send_xml(zip_invoice)
+            response = result['response']
+            track_id = result['track_id']
+            
+            return {
+                "status": response.status_code,
+                "text": response.text,
+                "track_id": track_id,
+                "filepath": result['filepath']
+            }
         except Exception as e:
             print(f"Error al enviar la factura. XML enviado: {self.xml_name}")
             print(f"Error al enviar la factura. Respuesta XML: {e}")

@@ -33,3 +33,13 @@ def create(request: CreditNoteDto):
         return create_note.start()
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error al crear la factura: " + str(e))
+
+@router.get("/status")
+def create(request: InvoiceDto):
+    try:
+        create_invoice = CreateInvoiceCase(request)
+        return create_invoice.send()
+    except DianRejectedDocumentError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.details)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error al crear la factura: " + str(e))

@@ -124,9 +124,8 @@ class SoapRequestTest:
             'Content-Type': 'application/soap+xml; charset=utf-8',
             'SOAPAction': f'http://wcf.dian.colombia/IWcfDianCustomerServices/SendTestSetAsync'
         }
-
+        
         response = requests.post(url, data=xml_request, headers=headers)
-        print("XML Request:\n",response, response.text, response.raise_for_status())
         response.raise_for_status()
 
         return response
@@ -134,11 +133,10 @@ class SoapRequestTest:
     def send_xml(self, base64_file):
         xml_request = self._prepare_xml(base64_file)
         
-        # Guardar XML en archivo
+        # Guardar XML request en archivo
         import os
-        from datetime import datetime
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f"soap_request_{timestamp}.xml"
+        filename = f"soap_test_request_{timestamp}.xml"
         
         # Crear directorio si no existe
         os.makedirs('logs', exist_ok=True)
@@ -146,6 +144,13 @@ class SoapRequestTest:
         
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write(xml_request)
+            f.write("\n\n")
+            f.write("=" * 80)
+            f.write("\n")
+            f.write("RESPUESTA DE LA DIAN")
+            f.write("\n")
+            f.write("=" * 80)
+            f.write("\n\n")
         
         # Imprimir en consola
         print("=" * 80)
@@ -154,5 +159,60 @@ class SoapRequestTest:
         print(xml_request)
         print("=" * 80)
         
-        return self._send_soap_request(xml_request)
+        # Enviar request y obtener respuesta
+        response = self._send_soap_request(xml_request)
+        response_text = response.text
+        
+        # Guardar respuesta en el mismo archivo
+        with open(filepath, 'a', encoding='utf-8') as f:
+            f.write(response_text)
+        
+        # Extraer trackId de la respuesta
+        track_id = self._extract_track_id(response_text)
+        
+        print("\n" + "=" * 80)
+        print("RESPUESTA DE LA DIAN")
+        print("=" * 80)
+        print(response_text)
+        print("=" * 80)
+        print(f"TrackId capturado: {track_id}")
+        print("=" * 80)
+        
+        return {
+            'response': response,
+            'track_id': track_id,
+            'filepath': filepath
+        }
+    
+    def _extract_track_id(self, xml_response):
+        """
+        Extrae el trackId de la respuesta SOAP de la DIAN
+        - Para SendTestSetAsync: zipKey
+        - Para respuestas síncronas: XmlDocumentKey
+        """
+        try:
+            response_root = etree.fromstring(xml_response.encode('utf-8'))
+            
+            track_id = None
+            
+            # Buscar en cualquier elemento que contenga estos nombres
+            for elem in response_root.iter():
+                tag_lower = elem.tag.lower()
+                # Primero buscar XmlDocumentKey (respuestas síncronas)
+                if 'xmldocumentkey' in tag_lower:
+                    track_id = elem.text
+                    break
+                # Luego buscar zipKey (respuestas asíncronas)
+                elif 'zipkey' in tag_lower:
+                    track_id = elem.text
+                    break
+                # También buscar trackId genérico
+                elif 'trackid' in tag_lower:
+                    track_id = elem.text
+                    break
+            
+            return track_id
+        except Exception as e:
+            print(f"Error al extraer trackId: {e}")
+            return None
 
