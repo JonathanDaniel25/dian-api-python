@@ -122,7 +122,7 @@ class SoapRequestTest:
         url = 'https://vpfe-hab.dian.gov.co/WcfDianCustomerServices.svc'
         headers = {
             'Content-Type': 'application/soap+xml; charset=utf-8',
-            'SOAPAction': f'http://wcf.dian.colombia/IWcfDianCustomerServices/SendTestSetAsync'
+            'SOAPAction': f'http://wcf.dian.colombia/IWcfDianCustomerServices/SendBillSync'
         }
         
         response = requests.post(url, data=xml_request, headers=headers)
@@ -160,8 +160,8 @@ class SoapRequestTest:
         print("=" * 80)
         
         # Enviar request y obtener respuesta
-        response = self._send_soap_request(xml_request)
-        response_text = response.text
+        #response = self._send_soap_request(xml_request)
+        #response_text = response.text
         
         # Guardar respuesta en el mismo archivo
         with open(filepath, 'a', encoding='utf-8') as f:

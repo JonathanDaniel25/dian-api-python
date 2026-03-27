@@ -27,6 +27,8 @@ async def loads():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _logger.info("Iniciando carga de archivos en segundo plano...")
+    await loads()
+    _logger.info("Carga completada, app lista.")
     # Ejecutar cargas en segundo plano sin bloquear
     asyncio.create_task(loads())
     yield

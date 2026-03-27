@@ -1,4 +1,5 @@
 import base64
+from datetime import datetime
 import hashlib
 from lxml import etree
 
@@ -104,7 +105,7 @@ class XmlSignerV3:
         cert_firmante = self._get_digest_issuer(self.firmante)
         cert_ca_raiz = self._get_digest_issuer(self.ca_raiz)
         cert_emisor = self._get_digest_issuer(self.emisor)
-
+        
         values =  [
             {
                 "DigestValue": cert_firmante['DigestValue'],
@@ -127,8 +128,7 @@ class XmlSignerV3:
             
     def set_properties(self, references):
         # formatted_date  = datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + "-05:00"
-        formatted_date = f"{self.invoice_dto.IssueDate}T{self.invoice_dto.IssueTime}"
-        # Buscar todos los elementos <xades:Cert>
+        formatted_date = datetime.now().strftime('%Y-%m-%dT%H:%M:%S-05:00')        # Buscar todos los elementos <xades:Cert>
         certs = self.signature_xml.findall(".//{http://uri.etsi.org/01903/v1.3.2#}Cert")
 
         # Recorrer las referencias y llenar los valores en cada <xades:Cert>

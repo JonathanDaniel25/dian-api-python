@@ -12,6 +12,7 @@ router = APIRouter(
 def create(request: InvoiceDto):
     try:
         create_invoice = CreateInvoiceCase(request)
+        print("CreateInvoiceCase creado exitosamente", create_invoice)
         return create_invoice.send()
     except DianRejectedDocumentError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.details)

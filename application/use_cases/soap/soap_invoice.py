@@ -115,7 +115,7 @@ class SoapRequest:
         return xml_request
         
     def _send_soap_request(self, xml_request):
-        url = 'https://vpfe.dian.gov.co/WcfDianCustomerServices.svc'
+        url = 'https://vpfe-hab.dian.gov.co/WcfDianCustomerServices.svc'
         headers = {
             'Content-Type': 'application/soap+xml; charset=utf-8',
             'SOAPAction': f'http://wcf.dian.colombia/IWcfDianCustomerServices/SendBillSync'
@@ -157,6 +157,10 @@ class SoapRequest:
         
         # Enviar request y obtener respuesta
         response = self._send_soap_request(xml_request)
+
+        if response is None:
+            raise Exception("El SOAP request no retornó respuesta (None)")
+
         response_text = response.text
         
         # Guardar respuesta en el mismo archivo
