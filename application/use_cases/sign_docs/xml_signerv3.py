@@ -221,10 +221,10 @@ class XmlSignerV3:
         invoice_c14n = self._get_c14n_node(invoice_xml)
         
         key_info_node = self._get_c14n_node(self.signature_xml.find("{http://www.w3.org/2000/09/xmldsig#}KeyInfo"))
-        #key_info_node = self._get_with_schemas(key_info_node)
+        key_info_node = self._get_with_schemas(key_info_node)
 
         properties_node = self._get_c14n_node(self.signature_xml.find(".//{http://uri.etsi.org/01903/v1.3.2#}SignedProperties"))
-        #properties_node = self._get_with_schemas(properties_node)
+        properties_node = self._get_with_schemas(properties_node)
 
         references = [
             {"DigestValue": self._get_digest(invoice_c14n)},
@@ -236,25 +236,17 @@ class XmlSignerV3:
         # Firmar el nodo SignedInfo
         signed_info_node = self.signature_xml.find("{http://www.w3.org/2000/09/xmldsig#}SignedInfo")
         canonical_signed_info = self._get_c14n_node(signed_info_node)
-        #canonical_signed_info = self._get_with_schemas(canonical_signed_info)
+        canonical_signed_info = self._get_with_schemas(canonical_signed_info)
 
         signature_value = self._generate_signature_value(canonical_signed_info)
         self.signature_xml.find("{http://www.w3.org/2000/09/xmldsig#}SignatureValue").text = signature_value
 
         # Agregar la firma al XML
         signature_str = etree.tostring(self.signature_xml, encoding='UTF-8').decode('utf-8')
-        if "<ext:ExtensionContent/>" in invoice_xml:
-            signed_invoice = invoice_xml.replace(
-                "<ext:ExtensionContent/>", 
-                f"<ext:ExtensionContent>{signature_str}</ext:ExtensionContent>"
-            )
-        elif "<ext:ExtensionContent></ext:ExtensionContent>" in invoice_xml:
-            signed_invoice = invoice_xml.replace(
-                "<ext:ExtensionContent></ext:ExtensionContent>",
-                f"<ext:ExtensionContent>{signature_str}</ext:ExtensionContent>"
-            )
-        else:
-            raise ValueError("No se encontró el placeholder <ext:ExtensionContent/> en el XML para insertar la firma.")
+        signed_invoice = invoice_xml.replace(
+            "<ext:ExtensionContent/>", 
+            f"<ext:ExtensionContent>{signature_str}</ext:ExtensionContent>"
+        )
 
         # Guardar el resultado canonizado en un archivo
         return signed_invoice

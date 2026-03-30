@@ -152,7 +152,7 @@ class TemplateXades:
         etree.SubElement(
             sig_policy_id,
             "{http://uri.etsi.org/01903/v1.3.2#}Identifier"
-        ).text = "https://facturaelectronica.dian.gov.co/politicadefirma/v1/politicadefirmav2.pdf"
+        ).text = "https://facturaelectronica.dian.gov.co/politicadefirma/v2/politicadefirmav2.pdf"
 
         sig_policy_hash = etree.SubElement(
             signature_policy_id,

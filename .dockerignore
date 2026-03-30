@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.sqlite3
+*.db
+venv/
+.venv/
+.env
+.DS_Store
+.git/
+.gitignore
+Dockerfile*
+README.md
