@@ -27,11 +27,13 @@ En caso tal de necesitar ayuda me pueden contactar al WhatsApp +57 300 812 0524
 3. Crea un entorno virtual e instala las dependencias:
 
     ```bash
+    .\venv\Scripts\Activate     #Acticar entorno
     python -m venv venv
     source venv/bin/activate    # Linux / macOS
     .\venv\Scripts\activate     # Windows
     pip install -r requirements.txt
     ```
+
     alternativas: 
     - pip install lxml --only-binary :all: 
     - python -m pip install --upgrade pip

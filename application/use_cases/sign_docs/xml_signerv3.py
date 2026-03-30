@@ -11,16 +11,56 @@ from shared import certificate_loader
 from .template_xades import TemplateXades
 
 class XmlSignerV3:
-    def __init__(self, invoice_xml, invoice_dto, document_type):
-            self.firmante = certificate_loader.security.firmante.public_bytes(serialization.Encoding.DER)
-            self.emisor = certificate_loader.security.emisor.public_bytes(serialization.Encoding.DER)
-            self.ca_raiz = certificate_loader.security.ca_raiz.public_bytes(serialization.Encoding.DER)
-            self.private_key = certificate_loader.security.private_key
-            self.politica_file = certificate_loader.security.politica_file
+    def __init__(
+        self,
+        invoice_xml,
+        invoice_dto=None,
+        document_type=None,
+        cert_data=None,
+        private_key=None,
+        firmante=None,
+        emisor=None,
+        ca_raiz=None,
+    ):
+        self.invoice_root = invoice_xml
+        self.invoice_dto = invoice_dto
+        self.document_type = document_type
 
-            self.invoice_root = invoice_xml
-            self.invoice_dto = invoice_dto
-            self.document_type = document_type
+        if cert_data is not None:
+            self._load_from_cert_data(cert_data)
+        elif private_key is not None or firmante is not None or emisor is not None or ca_raiz is not None:
+            self._load_from_explicit(private_key, firmante, emisor, ca_raiz)
+        else:
+            self._load_from_certificate_loader()
+
+        self.politica_file = getattr(certificate_loader.security, 'politica_file', None)
+
+    def _to_der_bytes(self, cert):
+        if cert is None:
+            return None
+        if isinstance(cert, bytes):
+            return cert
+        return cert.public_bytes(serialization.Encoding.DER)
+
+    def _load_from_cert_data(self, cert_data):
+        security = getattr(cert_data, 'security', cert_data)
+        self.private_key = getattr(security, 'private_key', None)
+        self.firmante = self._to_der_bytes(getattr(security, 'firmante', None))
+        self.emisor = self._to_der_bytes(getattr(security, 'emisor', None))
+        self.ca_raiz = self._to_der_bytes(getattr(security, 'ca_raiz', None))
+
+    def _load_from_explicit(self, private_key, firmante, emisor, ca_raiz):
+        self.private_key = private_key
+        self.firmante = self._to_der_bytes(firmante)
+        self.emisor = self._to_der_bytes(emisor)
+        self.ca_raiz = self._to_der_bytes(ca_raiz)
+
+    def _load_from_certificate_loader(self):
+        security = certificate_loader.security
+        self.private_key = security.private_key
+        self.firmante = self._to_der_bytes(security.firmante)
+        self.emisor = self._to_der_bytes(security.emisor)
+        self.ca_raiz = self._to_der_bytes(security.ca_raiz)
     
     def _get_with_schemas(self, input_data):
         if isinstance(input_data, bytes):
@@ -203,10 +243,18 @@ class XmlSignerV3:
 
         # Agregar la firma al XML
         signature_str = etree.tostring(self.signature_xml, encoding='UTF-8').decode('utf-8')
-        signed_invoice = invoice_xml.replace(
-            "<ext:ExtensionContent/>", 
-            f"<ext:ExtensionContent>{signature_str}</ext:ExtensionContent>"
-        )
+        if "<ext:ExtensionContent/>" in invoice_xml:
+            signed_invoice = invoice_xml.replace(
+                "<ext:ExtensionContent/>", 
+                f"<ext:ExtensionContent>{signature_str}</ext:ExtensionContent>"
+            )
+        elif "<ext:ExtensionContent></ext:ExtensionContent>" in invoice_xml:
+            signed_invoice = invoice_xml.replace(
+                "<ext:ExtensionContent></ext:ExtensionContent>",
+                f"<ext:ExtensionContent>{signature_str}</ext:ExtensionContent>"
+            )
+        else:
+            raise ValueError("No se encontró el placeholder <ext:ExtensionContent/> en el XML para insertar la firma.")
 
         # Guardar el resultado canonizado en un archivo
         return signed_invoice

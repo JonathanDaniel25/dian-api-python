@@ -7,11 +7,25 @@ from ..sign_docs.xml_signerv3 import XmlSignerV3
 from ..soap.soap_invoice import SoapRequest
 from ..soap.soap_test import SoapRequestTest
 
+from cryptography.hazmat.primitives.serialization import pkcs12
+from cryptography.hazmat.backends import default_backend
+
 _config = Config()
 
 class CreateInvoiceCase:
-    def __init__(self, invoice: InvoiceDto):
+    def __init__(self, invoice: InvoiceDto, cert_bytes: bytes, cert_password: str):
         self.invoice = invoice
+        private_key, firmante, additional_certs = pkcs12.load_key_and_certificates(
+            cert_bytes,
+            cert_password.encode(),
+            default_backend()
+        )
+
+        self.private_key = private_key
+        self.firmante = firmante
+        self.emisor = additional_certs[0] if additional_certs and len(additional_certs) > 0 else None
+        self.ca_raiz = additional_certs[1] if additional_certs and len(additional_certs) > 1 else (additional_certs[0] if additional_certs and len(additional_certs) > 0 else None)
+
         self.xml = InvoiceXml()
         self.soap_invoice = SoapRequest()
         self.soap_test = SoapRequestTest(invoice.Control.TestID)
@@ -56,7 +70,15 @@ class CreateInvoiceCase:
         self._set_lines()
 
         # Firmar Factura
-        self.signer = XmlSignerV3(self.xml.get_root, self.invoice, 'FV')
+        self.signer = XmlSignerV3( 
+            invoice_xml=self.xml.get_root,
+            invoice_dto=self.invoice,
+            document_type='FV',
+            private_key=self.private_key,
+            firmante=self.firmante,
+            emisor=self.emisor,
+            ca_raiz=self.ca_raiz
+        )
         signed_invoice = self.signer.sign()
         
         return signed_invoice
