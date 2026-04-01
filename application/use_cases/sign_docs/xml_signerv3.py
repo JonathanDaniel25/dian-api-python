@@ -5,9 +5,10 @@ from lxml import etree
 
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.serialization import pkcs12
+from cryptography.hazmat.backends import default_backend
 from cryptography.x509 import load_der_x509_certificate
 
-from shared import certificate_loader
 from .template_xades import TemplateXades
 
 class XmlSignerV3:
@@ -18,9 +19,9 @@ class XmlSignerV3:
         document_type=None,
         cert_data=None,
         private_key=None,
-        firmante=None,
-        emisor=None,
-        ca_raiz=None,
+        signer=None,
+        issuer=None,
+        root=None,
     ):
         self.invoice_root = invoice_xml
         self.invoice_dto = invoice_dto
@@ -28,12 +29,41 @@ class XmlSignerV3:
 
         if cert_data is not None:
             self._load_from_cert_data(cert_data)
-        elif private_key is not None or firmante is not None or emisor is not None or ca_raiz is not None:
-            self._load_from_explicit(private_key, firmante, emisor, ca_raiz)
+        elif private_key is not None or signer is not None or issuer is not None or root is not None:
+            self._load_from_explicit(private_key, signer, issuer, root)
         else:
-            self._load_from_certificate_loader()
+            raise ValueError("Debe enviar certificado y clave para firmar el XML.")
 
-        self.politica_file = getattr(certificate_loader.security, 'politica_file', None)
+        self.politica_file = getattr(cert_data, 'politica_file', None) if cert_data is not None else None
+
+    @classmethod
+    def from_voucher_and_certificate(cls, voucher, cert_bytes, password):
+        voucher_xml_root = etree.fromstring(voucher.encode('utf-8'))
+        private_key, signer, additional_certs = pkcs12.load_key_and_certificates(
+            cert_bytes,
+            password.encode(),
+            default_backend()
+        )
+
+        issuer = additional_certs[0] if additional_certs and len(additional_certs) > 0 else None
+        root = additional_certs[1] if additional_certs and len(additional_certs) > 1 else issuer
+
+        document_type = 'FV'
+        root_tag = voucher_xml_root.tag
+        if root_tag.endswith('CreditNote') or root_tag.endswith('CreditNote-2'):
+            document_type = 'NC'
+
+        if root_tag.endswith('DebitNote') or root_tag.endswith('DebitNote-2'):
+            document_type = 'ND'
+
+        return cls(
+            invoice_xml=voucher_xml_root,
+            document_type=document_type,
+            private_key=private_key,
+            signer=signer,
+            issuer=issuer,
+            root=root
+        )
 
     def _to_der_bytes(self, cert):
         if cert is None:
@@ -45,38 +75,32 @@ class XmlSignerV3:
     def _load_from_cert_data(self, cert_data):
         security = getattr(cert_data, 'security', cert_data)
         self.private_key = getattr(security, 'private_key', None)
-        self.firmante = self._to_der_bytes(getattr(security, 'firmante', None))
-        self.emisor = self._to_der_bytes(getattr(security, 'emisor', None))
-        self.ca_raiz = self._to_der_bytes(getattr(security, 'ca_raiz', None))
+        self.signer = self._to_der_bytes(getattr(security, 'signer', None) or getattr(security, 'firmante', None))
+        self.issuer = self._to_der_bytes(getattr(security, 'issuer', None) or getattr(security, 'emisor', None))
+        self.root = self._to_der_bytes(getattr(security, 'root', None) or getattr(security, 'ca_raiz', None))
 
-    def _load_from_explicit(self, private_key, firmante, emisor, ca_raiz):
+    def _load_from_explicit(self, private_key, signer, issuer, root):
         self.private_key = private_key
-        self.firmante = self._to_der_bytes(firmante)
-        self.emisor = self._to_der_bytes(emisor)
-        self.ca_raiz = self._to_der_bytes(ca_raiz)
-
-    def _load_from_certificate_loader(self):
-        security = certificate_loader.security
-        self.private_key = security.private_key
-        self.firmante = self._to_der_bytes(security.firmante)
-        self.emisor = self._to_der_bytes(security.emisor)
-        self.ca_raiz = self._to_der_bytes(security.ca_raiz)
+        self.signer = self._to_der_bytes(signer)
+        self.issuer = self._to_der_bytes(issuer)
+        self.root = self._to_der_bytes(root)
     
     def _get_with_schemas(self, input_data):
         if isinstance(input_data, bytes):
             node = input_data.decode('utf-8')
         else:
             node = input_data
-
         if self.document_type == 'FV':
             schema = 'xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2" xmlns:sts="http://www.dian.gov.co/contratos/facturaelectronica/v1/Structures" xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" xmlns:xades141="http://uri.etsi.org/01903/v1.4.1#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
-        else:
+        elif self.document_type == 'NC':
             schema = 'xmlns="urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2" xmlns:sts="http://www.dian.gov.co/contratos/facturaelectronica/v1/Structures" xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" xmlns:xades141="http://uri.etsi.org/01903/v1.4.1#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
+        else:
+            schema = 'xmlns="urn:oasis:names:specification:ubl:schema:xsd:DebitNote-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2" xmlns:sts="http://www.dian.gov.co/contratos/facturaelectronica/v1/Structures" xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" xmlns:xades141="http://uri.etsi.org/01903/v1.4.1#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
 
         return node.replace(
             'xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xades="http://uri.etsi.org/01903/v1.3.2#"',
             schema
-        )
+        ) 
     
     def _get_c14n_node(self, input_data):
         if isinstance(input_data, str):
@@ -116,12 +140,6 @@ class XmlSignerV3:
         issuer = cert.issuer.rfc4514_string()
         serial_number = str(cert.serial_number)
 
-        # # issuer_attributes = cert.issuer.get_attributes_for_oid
-        # cert_issuer = [
-        #     f"{attr.oid._name}={attr.value}" for attr in cert.issuer
-        # ]
-        # cert_issuer_str = ", ".join(reversed(cert_issuer))
-
         result = {
             'DigestValue': digest_base64,
             'X509IssuerName': issuer,
@@ -139,28 +157,28 @@ class XmlSignerV3:
 
     def _set_key_info(self):
         x509_certificate = self.signature_xml.find(".//{http://www.w3.org/2000/09/xmldsig#}X509Certificate")
-        x509_certificate.text = base64.b64encode(self.firmante).decode("utf-8")
+        x509_certificate.text = base64.b64encode(self.signer).decode("utf-8")
 
     def _get_properties_values(self) -> dict:
-        cert_firmante = self._get_digest_issuer(self.firmante)
-        cert_ca_raiz = self._get_digest_issuer(self.ca_raiz)
-        cert_emisor = self._get_digest_issuer(self.emisor)
+        cert_signer = self._get_digest_issuer(self.signer)
+        cert_root = self._get_digest_issuer(self.root)
+        cert_issuer = self._get_digest_issuer(self.issuer)
         
         values =  [
             {
-                "DigestValue": cert_firmante['DigestValue'],
-                "X509IssuerName": cert_firmante['X509IssuerName'],
-                "X509SerialNumber": cert_firmante['X509SerialNumber'],
+                "DigestValue": cert_signer['DigestValue'],
+                "X509IssuerName": cert_signer['X509IssuerName'],
+                "X509SerialNumber": cert_signer['X509SerialNumber'],
             },
             {
-                "DigestValue": cert_ca_raiz['DigestValue'],
-                "X509IssuerName": cert_ca_raiz['X509IssuerName'],
-                "X509SerialNumber": cert_ca_raiz['X509SerialNumber'],
+                "DigestValue": cert_root['DigestValue'],
+                "X509IssuerName": cert_root['X509IssuerName'],
+                "X509SerialNumber": cert_root['X509SerialNumber'],
             },
             {
-                "DigestValue": cert_emisor['DigestValue'],
-                "X509IssuerName": cert_emisor['X509IssuerName'],
-                "X509SerialNumber": cert_emisor['X509SerialNumber'],
+                "DigestValue": cert_issuer['DigestValue'],
+                "X509IssuerName": cert_issuer['X509IssuerName'],
+                "X509SerialNumber": cert_issuer['X509SerialNumber'],
             }
         ]
         
@@ -248,6 +266,5 @@ class XmlSignerV3:
             f"<ext:ExtensionContent>{signature_str}</ext:ExtensionContent>"
         )
 
-        # Guardar el resultado canonizado en un archivo
         return signed_invoice
        

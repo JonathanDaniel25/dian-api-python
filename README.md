@@ -32,14 +32,13 @@ En caso tal de necesitar ayuda me pueden contactar al WhatsApp +57 300 812 0524
     .\venv\Scripts\activate     # Windows
     pip install -r requirements.txt
     ```
-
     alternativas: 
     - pip install lxml --only-binary :all: 
     - python -m pip install --upgrade pip
     - pip install --upgrade pip setuptools wheel
     - pip install "lxml>=4.9.3"
     - pip install lxml==5.2.1
-    - python-multipart>=0.0.6
+
     .\venv\Scripts\python -m uvicorn app:app --host 0.0.0.0 --reload
 
 ## Uso
@@ -51,7 +50,7 @@ En caso tal de necesitar ayuda me pueden contactar al WhatsApp +57 300 812 0524
     ```
 
 2. Accede a la documentación de la API en tu navegador:
-
+  
     ```
     http://localhost:8000/docs
     ```
@@ -185,3 +184,19 @@ Este proyecto está licenciado bajo la misma licencia de código abierto que el 
   ]
 }
 ```
+
+
+## Despliegue 
+
+docker build -t fastapi-app .
+
+docker run -d -p 80:80  --name fastapi-container fastapi-app
+
+
+docker run -d \
+  -p 80:80 \
+  --name fastapi-container \
+  -e ENV=production \
+  -e LOG_LEVEL=info \
+  fastapi-app
+  
