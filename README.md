@@ -27,7 +27,6 @@ En caso tal de necesitar ayuda me pueden contactar al WhatsApp +57 300 812 0524
 3. Crea un entorno virtual e instala las dependencias:
 
     ```bash
-    .\venv\Scripts\Activate     #Acticar entorno
     python -m venv venv
     source venv/bin/activate    # Linux / macOS
     .\venv\Scripts\activate     # Windows
@@ -40,7 +39,7 @@ En caso tal de necesitar ayuda me pueden contactar al WhatsApp +57 300 812 0524
     - pip install --upgrade pip setuptools wheel
     - pip install "lxml>=4.9.3"
     - pip install lxml==5.2.1
-
+    - python-multipart>=0.0.6
     .\venv\Scripts\python -m uvicorn app:app --host 0.0.0.0 --reload
 
 ## Uso

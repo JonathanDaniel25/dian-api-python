@@ -9,19 +9,20 @@ from cryptography.hazmat.backends import default_backend
 from application.use_cases.sign_docs.xml_signerv3 import XmlSignerV3
 
 router = APIRouter(
-    prefix="/api/invoice",
-    tags=["invoice"]
+    prefix="/api/voucher",
+    tags=["voucher"]
 )
 
-@router.post("/create_invoice")
+@router.post("/sign")
 async def create(
-    invoice: str = Form(...),
+    voucher: str = Form(...),
     certificate: UploadFile = File(...),
     password: str = Form(...)
 ):
     cert_bytes = await certificate.read()
     try:
-        invoice_xml_root = etree.fromstring(invoice.encode('utf-8'))
+        print('xml recibido', voucher)
+        voucher_xml_root = etree.fromstring(voucher.encode('utf-8'))
         private_key, firmante, additional_certs = pkcs12.load_key_and_certificates(
             cert_bytes,
             password.encode(),
@@ -32,12 +33,12 @@ async def create(
         ca_raiz = additional_certs[1] if additional_certs and len(additional_certs) > 1 else emisor
 
         document_type = 'FV'
-        root_tag = invoice_xml_root.tag
+        root_tag = voucher_xml_root.tag
         if root_tag.endswith('CreditNote') or root_tag.endswith('CreditNote-2'):
             document_type = 'NC'
 
         signer = XmlSignerV3(
-            invoice_xml=invoice_xml_root,
+            invoice_xml=voucher_xml_root,
             document_type=document_type,
             private_key=private_key,
             firmante=firmante,
@@ -45,34 +46,9 @@ async def create(
             ca_raiz=ca_raiz
         )
 
-        signed_invoice = signer.sign()
-        return Response(content=signed_invoice, media_type="application/xml")
-    except DianRejectedDocumentError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.details)
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error al crear la factura: " + str(e))
-    
-@router.post("/send_test")
-def create(request: InvoiceDto):
-    try:
-        create_invoice = CreateInvoiceCase(request)
-        return create_invoice.send_test()
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error al crear la factura: " + str(e))
-
-@router.post("/create_credit_note")
-def create(request: CreditNoteDto):
-    try:
-        create_note = CreateNoteCase(request)
-        return create_note.start()
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error al crear la factura: " + str(e))
-
-@router.get("/status")
-def create(request: InvoiceDto):
-    try:
-        create_invoice = CreateInvoiceCase(request)
-        return create_invoice.send()
+        signed_voucher = signer.sign()
+        print('send sign', signed_voucher)
+        return Response(content=signed_voucher, media_type="application/xml")
     except DianRejectedDocumentError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.details)
     except Exception as e:

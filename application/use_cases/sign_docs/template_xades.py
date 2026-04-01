@@ -1,15 +1,17 @@
 from lxml import etree
+import uuid
 
 class TemplateXades:
 
     @classmethod
     def create_signature_template(self):
+        uid = "xmldsig-" + str(uuid.uuid4())
         nsmap = {
             'ds': 'http://www.w3.org/2000/09/xmldsig#',
             'xades': 'http://uri.etsi.org/01903/v1.3.2#'
         }
 
-        root = etree.Element("{http://www.w3.org/2000/09/xmldsig#}Signature", nsmap=nsmap, Id="xmldsig-d0322c4f-be87-495a-95d5-9244980495f4")
+        root = etree.Element("{http://www.w3.org/2000/09/xmldsig#}Signature", nsmap=nsmap, Id=uid)
 
         signed_info = etree.SubElement(root, "{http://www.w3.org/2000/09/xmldsig#}SignedInfo")
 
@@ -28,7 +30,7 @@ class TemplateXades:
         reference1 = etree.SubElement(
             signed_info, 
             "{http://www.w3.org/2000/09/xmldsig#}Reference", 
-            Id="xmldsig-d0322c4f-be87-495a-95d5-9244980495f4-ref0", 
+            Id=f"{uid}-ref0", 
             URI=""
         )
         transforms = etree.SubElement(reference1, "{http://www.w3.org/2000/09/xmldsig#}Transforms")
@@ -47,7 +49,7 @@ class TemplateXades:
         reference2 = etree.SubElement(
             signed_info, 
             "{http://www.w3.org/2000/09/xmldsig#}Reference", 
-            URI="#xmldsig-d0322c4f-be87-495a-95d5-9244980495f4-keyinfo"
+            URI=f"#{uid}-keyinfo"
         )
 
         # transforms = etree.SubElement(reference2, "{http://www.w3.org/2000/09/xmldsig#}Transforms")
@@ -68,7 +70,7 @@ class TemplateXades:
             signed_info, 
             "{http://www.w3.org/2000/09/xmldsig#}Reference", 
             Type="http://uri.etsi.org/01903#SignedProperties", 
-            URI="#xmldsig-d0322c4f-be87-495a-95d5-9244980495f4-signedprops"
+            URI=f"#{uid}-signedprops"
         )
         # transforms = etree.SubElement(reference3, "{http://www.w3.org/2000/09/xmldsig#}Transforms")
         # etree.SubElement(
@@ -86,13 +88,13 @@ class TemplateXades:
         etree.SubElement(
             root, 
             "{http://www.w3.org/2000/09/xmldsig#}SignatureValue", 
-            Id="xmldsig-d0322c4f-be87-495a-95d5-9244980495f4-sigvalue"
+            Id=f"{uid}-sigvalue"
         )
 
         key_info = etree.SubElement(
             root, 
             "{http://www.w3.org/2000/09/xmldsig#}KeyInfo", 
-            Id="xmldsig-d0322c4f-be87-495a-95d5-9244980495f4-keyinfo"
+            Id=f"{uid}-keyinfo"
         )
         x509_data = etree.SubElement(key_info, "{http://www.w3.org/2000/09/xmldsig#}X509Data")
         etree.SubElement(x509_data, "{http://www.w3.org/2000/09/xmldsig#}X509Certificate")
@@ -101,12 +103,12 @@ class TemplateXades:
         qualifying_properties = etree.SubElement(
             ds_object, 
             "{http://uri.etsi.org/01903/v1.3.2#}QualifyingProperties", 
-            Target="#xmldsig-d0322c4f-be87-495a-95d5-9244980495f4"
+            Target=f"#{uid}"
         )
         signed_properties = etree.SubElement(
             qualifying_properties, 
             "{http://uri.etsi.org/01903/v1.3.2#}SignedProperties", 
-            Id="xmldsig-d0322c4f-be87-495a-95d5-9244980495f4-signedprops"
+            Id=f"{uid}-signedprops"
         )
         signed_signature_properties = etree.SubElement(
             signed_properties, 
